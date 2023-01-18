@@ -124,8 +124,7 @@ jobs:
         run: |
           set -eux;
           CTX="BUILDBIN=true VERSIONTAG=${{ github.ref_name }} BASEIMAGETAG=${{ github.ref_name }} MULTIARCH=${MULTIARCH} IMAGENAMESPACE=${IMAGENAMESPACE} BASEIMAGENAMESPACE=${BASEIMAGENAMESPACE} TRIVYFLAG=${TRIVYFLAG} CHARTFLAG=${CHARTFLAG} NOTARYFLAG=${CHARTFLAG} IMAGELABELS=${IMAGELABELS}"
-
-          make versions_prepare ${CTX};
+           make versions_prepare ${CTX};
           case ${{ matrix.component }} in
             core)                   make compile_core ${CTX} ;;
             jobservice)             make compile_jobservice ${CTX};;
