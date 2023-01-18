@@ -1,9 +1,8 @@
-name: Docker publish
+name: Docker publish to docker hub
 
 on:
-  push:
-    branches:
-      - 'main'
+  release:
+    types: [published]
 
 jobs:
   docker-base-image:
@@ -43,14 +42,10 @@ jobs:
           driver-opts: network=host
       - uses: docker/login-action@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - run: cd .. && make patch
-
-      - id: prepare
-        run: echo "tag=$(cat ../version)"  >> $GITHUB_ENV
 
       - name: Build base image
         uses: docker/build-push-action@v3
@@ -59,10 +54,10 @@ jobs:
           file: ./harbor/make/photon/${{ matrix.component }}/Dockerfile.base
           platforms: linux/amd64,linux/arm64
           labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ env.tag }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ghcr.io/${{ github.repository }}/harbor-${{ matrix.component }}-base:${{ env.tag }}
+            org.opencontainers.image.source=https://github.com/wawa27
+            org.opencontainers.image.revision=${{ github.ref_name }}
+          push: true
+          tags: wawa27/harbor-${{ matrix.component }}-base:${{ github.ref_name }}
 
   docker-image:
     needs:
@@ -110,31 +105,26 @@ jobs:
 
       - uses: docker/login-action@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - run: cd .. && make patch
 
-      - id: prepare
-        run: echo "tag=$(cat ../version)" >> $GITHUB_ENV
-
       - name: Build & Publish images
         env:
-          IMAGENAMESPACE: ghcr.io/${{ github.repository }}
-          BASEIMAGENAMESPACE: ghcr.io/${{ github.repository }}
-          IMAGELABELS: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          IMAGENAMESPACE: wawa27
+          BASEIMAGENAMESPACE: wawa27
+          IMAGELABELS: org.opencontainers.image.source=https://github.com/wawa27/harbor-arm64
           MULTIARCH: true
           TRIVYFLAG: true
           CHARTFLAG: true
           NOTARYFLAG: true
+          REGISTRYUSER: ${{ secrets.DOCKER_USERNAME }}
+          REGISTRYPASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
           set -eux;
-
-          CTX="BUILDBIN=true VERSIONTAG=${{ env.tag }} BASEIMAGETAG=${{ env.tag }} MULTIARCH=${MULTIARCH} IMAGENAMESPACE=${IMAGENAMESPACE} BASEIMAGENAMESPACE=${BASEIMAGENAMESPACE} TRIVYFLAG=${TRIVYFLAG} CHARTFLAG=${CHARTFLAG} NOTARYFLAG=${CHARTFLAG} IMAGELABELS=${IMAGELABELS}"
-
+          CTX="BUILDBIN=true VERSIONTAG=${{ github.ref_name }} BASEIMAGETAG=${{ github.ref_name }} MULTIARCH=${MULTIARCH} IMAGENAMESPACE=${IMAGENAMESPACE} BASEIMAGENAMESPACE=${BASEIMAGENAMESPACE} TRIVYFLAG=${TRIVYFLAG} CHARTFLAG=${CHARTFLAG} NOTARYFLAG=${CHARTFLAG} IMAGELABELS=${IMAGELABELS}"
           sudo make versions_prepare ${CTX};
-
           case ${{ matrix.component }} in
             core)                   sudo make compile_core ${CTX} ;;
             jobservice)             sudo make compile_jobservice ${CTX};;
@@ -142,7 +132,6 @@ jobs:
             notary*)                sudo make compile_notary_migrate_patch ${CTX} ;;
             standalone_db_migrator) sudo make compile_standalone_db_migrator ${CTX} ;;
           esac;
-
           case ${{ matrix.component }} in
             exporter)    sudo make build BUILDTARGET="_compile_and_build_exporter" ${CTX} ;;
             registryctl) sudo make build BUILDTARGET="_build_registry _build_registryctl" ${CTX} ;;
