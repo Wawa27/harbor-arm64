@@ -1,5 +1,7 @@
 # Harbor multi-arch images
 
+All the images are available in docker hub : https://hub.docker.com/r/wawa27
+
 ## How to build
 
 Same as https://github.com/goharbor/harbor
